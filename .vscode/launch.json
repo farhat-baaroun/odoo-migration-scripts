@@ -1,0 +1,52 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Odoo Report Generator (HTML + JSON)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/module_report.py",
+            "console": "integratedTerminal",
+            "args": [
+                "addons_folder",
+                "-o", "addons_reports/odoo_report.html",
+                "-j", "addons_reports/odoo_report.json"
+            ],
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}",
+            "env": {},
+            "python": "${command:python.interpreterPath}"
+        },
+        {
+            "name": "Python: Odoo Report Generator (HTML only)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/module_report.py",
+            "console": "integratedTerminal",
+            "args": [
+                "addons_folder",
+                "-o", "addons_reports/odoo_report.html"
+            ],
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}",
+            "env": {},
+            "python": "${command:python.interpreterPath}"
+        },
+        {
+            "name": "Python: Odoo Report Generator (Console only)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/module_report.py",
+            "console": "integratedTerminal",
+            "args": [
+                "addons_folder",
+                "--console-only"
+            ],
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}",
+            "env": {},
+            "python": "${command:python.interpreterPath}"
+        }
+    ]
+}
+

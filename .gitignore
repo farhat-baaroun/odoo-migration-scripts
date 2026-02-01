@@ -1,0 +1,40 @@
+# Odoo addons folder (place your Odoo modules here)
+addons_folder/
+addons_folder/*
+addons_14_folder/
+addons_14_folder/*
+addons_19_folder/
+addons_19_folder/*
+orm_19/
+orm_19/*
+orm_14/
+orm_14/*
+
+# Generated reports
+addons_reports/
+addons_reports/*
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+

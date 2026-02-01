@@ -471,6 +471,19 @@ def save_json_report(report: Dict, output_file: str) -> None:
     print(f"JSON data: {output_file}")
 
 
+def _sanitize_id(text: str) -> str:
+    """Convert text to a valid HTML ID by replacing special characters."""
+    if not text:
+        return 'unknown'
+    # Replace dots, spaces, and other special chars with underscores
+    sanitized = re.sub(r'[^a-zA-Z0-9_-]', '_', str(text))
+    # Remove consecutive underscores
+    sanitized = re.sub(r'_+', '_', sanitized)
+    # Remove leading/trailing underscores
+    sanitized = sanitized.strip('_')
+    return sanitized.lower()
+
+
 def generate_html_report(report: Dict, output_file: str = None):
     """Generate HTML report with detailed statistics."""
     modules = defaultdict(list)
@@ -528,32 +541,39 @@ tr:hover{{background:#f8f9fa}}
 hr{{border:none;height:2px;background:linear-gradient(to right,transparent,#bdc3c7,transparent);margin:50px 0}}
 .total-row{{background:#ecf0f1!important;font-weight:700;font-size:1.05em}}
 .total-row td{{border-top:3px solid #3498db}}
+details{{margin:20px 0;border:1px solid #ecf0f1;border-radius:5px;padding:0}}
+details summary{{cursor:pointer;padding:15px 20px;background:#f8f9fa;font-weight:500;list-style:none;border-radius:5px}}
+details summary::-webkit-details-marker{{display:none}}
+details summary::before{{content:'▶ ';display:inline-block;margin-right:8px;transition:transform 0.2s}}
+details[open] summary::before{{transform:rotate(90deg)}}
+details[open] summary{{border-bottom:1px solid #ecf0f1;border-radius:5px 5px 0 0}}
+details .details-content{{padding:20px}}
 </style></head><body>
-<div class="header">
+<div id="header" class="header" data-section="header">
 <h1>FSF Modules Analysis Report</h1>
 <div class="meta-info">
 <div><strong>Generated:</strong> {report.get('timestamp')}</div>
 <div><strong>Analyzed:</strong> {report['analyzed_path']}</div>
 </div>
 
-<div class="stats-grid">
-<div class="stat-card">
+<div id="stats-grid" class="stats-grid" data-section="stats">
+<div id="stat-modules" class="stat-card" data-stat="modules">
 <div class="stat-label">Modules</div>
 <div class="stat-value">{report['stats']['total_modules']}</div>
 </div>
 
-<div class="stat-card">
+<div id="stat-models" class="stat-card" data-stat="models">
 <div class="stat-label">Models</div>
 <div class="stat-value">{len(report['models'])}</div>
 </div>
 
-<div class="stat-card">
+<div id="stat-total-fields" class="stat-card" data-stat="total-fields">
 <div class="stat-label">Total Fields</div>
 <div class="stat-value">{total_fields}</div>
 <div class="stat-detail">Regular: {regular_fields}</div>
 </div>
 
-<div class="stat-card">
+<div id="stat-computed-fields" class="stat-card" data-stat="computed-fields">
 <div class="stat-label">Computed Fields</div>
 <div class="stat-value">{computed_stored + computed_non_stored}</div>
 <div class="stat-detail">
@@ -562,7 +582,7 @@ Non-Stored: <span style="color:{comp_ns_color}">{computed_non_stored}</span>
 </div>
 </div>
 
-<div class="stat-card">
+<div id="stat-related-fields" class="stat-card" data-stat="related-fields">
 <div class="stat-label">Related Fields</div>
 <div class="stat-value">{related_stored + related_non_stored}</div>
 <div class="stat-detail">
@@ -571,7 +591,7 @@ Non-Stored: <span class="success">{related_non_stored}</span>
 </div>
 </div>
 
-<div class="stat-card">
+<div id="stat-methods" class="stat-card" data-stat="methods">
 <div class="stat-label">Methods</div>
 <div class="stat-value">{total_summary.get('total_methods', 0)}</div>
 <div class="stat-detail">
@@ -586,73 +606,98 @@ Non-Stored: <span class="success">{related_non_stored}</span>
 </div>"""
 
     for module_name in sorted(modules.keys()):
-        html += f'<h2>Module: {module_name}</h2>'
+        module_id = _sanitize_id(module_name)
+        html += f'<h2 id="module-{module_id}" data-module="{module_name}" data-section="module">Module: {module_name}</h2>'
 
         for model in modules[module_name]:
             model_name = model['model_name'] or (model['inherit'][0] if model['inherit'] else model['class_name'])
             file_path = model.get('file', 'unknown')
+            model_id = _sanitize_id(model_name)
+            class_name = model.get('class_name', '')
+            class_id = _sanitize_id(class_name)
 
             type_class = model['model_type'].lower().replace(' ', '-')
-            html += f'<div class="model-header"><h3>{module_name}/{model_name}</h3>'
-            html += f'<span class="model-type {type_class}">{model["model_type"]}</span>'
+            
+            # Wrap model in details/summary for collapsible section
+            html += f'<details id="model-{model_id}" data-model="{model_name}" data-model-type="{model["model_type"]}" data-module="{module_name}" data-class-name="{class_name}" data-file="{file_path}">'
+            html += f'<summary><div class="model-header"><h3>{module_name}/{model_name}</h3>'
+            html += f'<span class="model-type {type_class}" data-model-type-badge="{model["model_type"]}">{model["model_type"]}</span>'
             html += '<div class="model-meta">'
             if model['model_name']:
-                html += f'<code>_name: {model["model_name"]}</code><br>'
+                html += f'<code data-attr="_name">_name: {model["model_name"]}</code><br>'
             if model['inherit']:
-                html += f'<code>_inherit: {", ".join(model["inherit"])}</code><br>'
+                html += f'<code data-attr="_inherit">_inherit: {", ".join(model["inherit"])}</code><br>'
             if model.get('inherits'):
                 inherits_str = ', '.join([f'{k} via {v}' for k, v in model['inherits'].items()])
-                html += f'<code>_inherits: {inherits_str}</code><br>'
-            html += f'<span class="citation">[{file_path}]</span></div></div>'
+                html += f'<code data-attr="_inherits">_inherits: {inherits_str}</code><br>'
+            html += f'<span class="citation">[{file_path}]</span></div></div></summary>'
+            html += '<div class="details-content">'
 
             if model['regular_fields']:
-                html += f'<h3>Regular Fields ({len(model["regular_fields"])})</h3><ul>'
+                section_id = f'model-{model_id}-section-regular-fields'
+                html += f'<h3 id="{section_id}" data-section="regular-fields" data-model="{model_name}">Regular Fields ({len(model["regular_fields"])})</h3>'
+                html += f'<ul id="{section_id}-list" data-field-type="regular">'
                 for f in model['regular_fields']:
+                    field_id = f'model-{model_id}-field-{_sanitize_id(f["name"])}'
                     attrs = ' '.join([f'<span class="attr-bold">{k}</span>={v}' for k, v in f['attrs'].items()])
-                    html += f'<li><span class="field-name">{f["name"]}</span>: {f["type"]} ({attrs})</li>'
+                    html += f'<li id="{field_id}" data-field-name="{f["name"]}" data-field-type="{f["type"]}" data-model="{model_name}"><span class="field-name">{f["name"]}</span>: {f["type"]} ({attrs})</li>'
                 html += '</ul>'
 
             if model['computed_stored'] or model['computed_non_stored']:
-                html += '<h3>Computed Fields</h3>'
+                section_id = f'model-{model_id}-section-computed-fields'
+                html += f'<h3 id="{section_id}" data-section="computed-fields" data-model="{model_name}">Computed Fields</h3>'
                 if model['computed_stored']:
-                    html += f'<p><strong>Stored ({len(model["computed_stored"])})</strong></p><ul>'
+                    html += f'<p id="{section_id}-stored-header"><strong>Stored ({len(model["computed_stored"])})</strong></p>'
+                    html += f'<ul id="{section_id}-stored-list" data-field-type="computed" data-stored="true">'
                     for f in model['computed_stored']:
+                        field_id = f'model-{model_id}-field-{_sanitize_id(f["name"])}'
                         attrs = ' '.join([f'<span class="attr-bold">{k}</span>={v}' for k, v in f['attrs'].items()])
-                        html += f'<li><span class="field-name">{f["name"]}</span>: {f["type"]} ({attrs})</li>'
+                        html += f'<li id="{field_id}" data-field-name="{f["name"]}" data-field-type="{f["type"]}" data-computed="true" data-stored="true" data-model="{model_name}"><span class="field-name">{f["name"]}</span>: {f["type"]} ({attrs})</li>'
                     html += '</ul>'
                 if model['computed_non_stored']:
-                    html += f'<p><strong>Non-Stored ({len(model["computed_non_stored"])})</strong></p><ul>'
+                    html += f'<p id="{section_id}-non-stored-header"><strong>Non-Stored ({len(model["computed_non_stored"])})</strong></p>'
+                    html += f'<ul id="{section_id}-non-stored-list" data-field-type="computed" data-stored="false">'
                     for f in model['computed_non_stored']:
+                        field_id = f'model-{model_id}-field-{_sanitize_id(f["name"])}'
                         attrs = ' '.join([f'<span class="attr-bold">{k}</span>={v}' for k, v in f['attrs'].items()])
-                        html += f'<li><span class="field-name">{f["name"]}</span>: {f["type"]} ({attrs})</li>'
+                        html += f'<li id="{field_id}" data-field-name="{f["name"]}" data-field-type="{f["type"]}" data-computed="true" data-stored="false" data-model="{model_name}"><span class="field-name">{f["name"]}</span>: {f["type"]} ({attrs})</li>'
                     html += '</ul>'
 
             if model['related_fields']:
                 related_stored = [f for f in model['related_fields'] if f.get('stored') == True]
                 related_non_stored = [f for f in model['related_fields'] if f.get('stored') != True]
 
-                html += f'<h3>Related Fields ({len(model["related_fields"])})</h3>'
+                section_id = f'model-{model_id}-section-related-fields'
+                html += f'<h3 id="{section_id}" data-section="related-fields" data-model="{model_name}">Related Fields ({len(model["related_fields"])})</h3>'
 
                 if related_stored:
-                    html += f'<p><strong>Stored ({len(related_stored)})</strong></p><ul>'
+                    html += f'<p id="{section_id}-stored-header"><strong>Stored ({len(related_stored)})</strong></p>'
+                    html += f'<ul id="{section_id}-stored-list" data-field-type="related" data-stored="true">'
                     for f in related_stored:
+                        field_id = f'model-{model_id}-field-{_sanitize_id(f["name"])}'
                         attrs = ' '.join([f'<span class="attr-bold">{k}</span>={v}' for k, v in f['attrs'].items()])
-                        html += f'<li><span class="field-name">{f["name"]}</span>: {f["type"]} ({attrs})</li>'
+                        html += f'<li id="{field_id}" data-field-name="{f["name"]}" data-field-type="{f["type"]}" data-related="true" data-stored="true" data-model="{model_name}"><span class="field-name">{f["name"]}</span>: {f["type"]} ({attrs})</li>'
                     html += '</ul>'
 
                 if related_non_stored:
-                    html += f'<p><strong>Non-Stored ({len(related_non_stored)})</strong></p><ul>'
+                    html += f'<p id="{section_id}-non-stored-header"><strong>Non-Stored ({len(related_non_stored)})</strong></p>'
+                    html += f'<ul id="{section_id}-non-stored-list" data-field-type="related" data-stored="false">'
                     for f in related_non_stored:
+                        field_id = f'model-{model_id}-field-{_sanitize_id(f["name"])}'
                         attrs = ' '.join([f'<span class="attr-bold">{k}</span>={v}' for k, v in f['attrs'].items()])
-                        html += f'<li><span class="field-name">{f["name"]}</span>: {f["type"]} ({attrs})</li>'
+                        html += f'<li id="{field_id}" data-field-name="{f["name"]}" data-field-type="{f["type"]}" data-related="true" data-stored="false" data-model="{model_name}"><span class="field-name">{f["name"]}</span>: {f["type"]} ({attrs})</li>'
                     html += '</ul>'
 
-            html += '<h3>Methods</h3><table><thead><tr><th>Method name</th><th>Decorators</th><th>Has super</th></tr></thead><tbody>'
+            section_id = f'model-{model_id}-section-methods'
+            html += f'<h3 id="{section_id}" data-section="methods" data-model="{model_name}">Methods</h3>'
+            html += f'<table id="{section_id}-table" data-model="{model_name}"><thead><tr><th>Method name</th><th>Decorators</th><th>Has super</th></tr></thead><tbody>'
             for m in model['methods']:
+                method_id = f'model-{model_id}-method-{_sanitize_id(m["name"])}'
                 decors = '; '.join(m['decorators']) if m['decorators'] else ''
                 super_class = 'super-yes' if m['has_super'] else 'super-no'
                 super_text = '✅ yes' if m['has_super'] else '❌ no'
-                html += f'<tr><td><span class="field-name">{m["name"]}</span></td><td>{decors}</td><td class="{super_class}">{super_text}</td></tr>'
+                decorator_attrs = ' '.join([f'data-decorator="{d}"' for d in m['decorators']])
+                html += f'<tr id="{method_id}" data-method-name="{m["name"]}" data-model="{model_name}" data-has-super="{str(m["has_super"]).lower()}" {decorator_attrs}><td><span class="field-name">{m["name"]}</span></td><td>{decors}</td><td class="{super_class}">{super_text}</td></tr>'
             html += '</tbody></table>'
 
             summ = report['summary'].get(model_name, {})
@@ -666,7 +711,8 @@ Non-Stored: <span class="success">{related_non_stored}</span>
             comp_non_stored_html = f'<strong>{comp_non_stored}</strong>' if comp_non_stored == 0 else f'<strong style="color:#e74c3c">{comp_non_stored}</strong>'
             related_stored_html = f'<strong>{rel_stored}</strong>' if rel_stored == 0 else f'<strong style="color:#e74c3c">{rel_stored}</strong>'
 
-            html += f'''<div class="summary-box"><div class="summary-title">📊 Model Summary</div>
+            summary_id = f'model-{model_id}-summary'
+            html += f'''<div id="{summary_id}" class="summary-box" data-section="model-summary" data-model="{model_name}"><div class="summary-title">📊 Model Summary</div>
 <strong>{model["model_type"]}</strong> | Total Fields: <strong>{summ.get("total_fields", 0)}</strong> | 
 Computed: <strong>{comp_total}</strong> (Stored: <strong>{comp_stored}</strong>, Non-Stored: {comp_non_stored_html}) | 
 Related: <strong>{related_total}</strong> (Stored: {related_stored_html}, Non-Stored: <strong>{rel_non_stored}</strong>) | 
@@ -676,9 +722,10 @@ Methods: <strong>{summ.get("total_methods", 0)}</strong>
 <strong>@api.depends:</strong> {summ.get("api_depends", 0)}, 
 <strong>@api.constrains:</strong> {summ.get("api_constrains", 0)})
 </div>'''
-            html += '<hr>'
+            html += '</div></details>'
 
-    html += '<h1>Complete Summary</h1><table><thead><tr>'
+    html += '<h1 id="complete-summary" data-section="complete-summary">Complete Summary</h1>'
+    html += '<table id="summary-table" data-section="summary-table"><thead><tr>'
     html += '<th>Model</th><th>Type</th><th>Total Fields</th><th>Computed (S/NS)</th><th>Related (S/NS)</th><th>Methods</th><th>model</th><th>onchange</th><th>depends</th><th>constrains</th>'
     html += '</tr></thead><tbody>'
 
@@ -686,13 +733,14 @@ Methods: <strong>{summ.get("total_methods", 0)}</strong>
     for model_name, stats in report['summary'].items():
         if model_name == 'TOTAL':
             continue
+        model_id = _sanitize_id(model_name)
         comp_str = f"{stats['computed_stored'] + stats['computed_non_stored']} ({stats['computed_stored']}/{stats['computed_non_stored']})"
         rel_str = f"{stats['related_stored'] + stats['related_non_stored']} ({stats['related_stored']}/{stats['related_non_stored']})"
-        html += f"<tr><td>{model_name}</td><td>{stats['type']}</td><td>{stats['total_fields']}</td><td>{comp_str}</td><td>{rel_str}</td><td>{stats['total_methods']}</td><td>{stats['api_model']}</td><td>{stats['api_onchange']}</td><td>{stats['api_depends']}</td><td>{stats['api_constrains']}</td></tr>"
+        html += f'<tr id="summary-row-{model_id}" data-model="{model_name}" data-model-type="{stats["type"]}"><td>{model_name}</td><td>{stats["type"]}</td><td>{stats["total_fields"]}</td><td>{comp_str}</td><td>{rel_str}</td><td>{stats["total_methods"]}</td><td>{stats["api_model"]}</td><td>{stats["api_onchange"]}</td><td>{stats["api_depends"]}</td><td>{stats["api_constrains"]}</td></tr>'
 
     comp_total = total['computed_stored'] + total['computed_non_stored']
     rel_total = total['related_stored'] + total['related_non_stored']
-    html += f"<tr class='total-row'><td><strong>TOTAL</strong></td><td></td><td><strong>{total['total_fields']}</strong></td><td><strong>{comp_total} ({total['computed_stored']}/{total['computed_non_stored']})</strong></td><td><strong>{rel_total} ({total['related_stored']}/{total['related_non_stored']})</strong></td><td><strong>{total['total_methods']}</strong></td><td><strong>{total['api_model']}</strong></td><td><strong>{total['api_onchange']}</strong></td><td><strong>{total['api_depends']}</strong></td><td><strong>{total['api_constrains']}</strong></td></tr>"
+    html += f'<tr id="summary-row-total" class="total-row" data-row-type="total"><td><strong>TOTAL</strong></td><td></td><td><strong>{total["total_fields"]}</strong></td><td><strong>{comp_total} ({total["computed_stored"]}/{total["computed_non_stored"]})</strong></td><td><strong>{rel_total} ({total["related_stored"]}/{total["related_non_stored"]})</strong></td><td><strong>{total["total_methods"]}</strong></td><td><strong>{total["api_model"]}</strong></td><td><strong>{total["api_onchange"]}</strong></td><td><strong>{total["api_depends"]}</strong></td><td><strong>{total["api_constrains"]}</strong></td></tr>'
     html += '</tbody></table></body></html>'
 
     if output_file:
@@ -718,12 +766,20 @@ def main():
     if args.console_only:
         return
 
+    # Ensure addons_reports directory exists
+    reports_dir = Path('addons_reports')
+    reports_dir.mkdir(exist_ok=True)
+
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    html_file = args.html or f"odoo_report_{timestamp}.html"
+    if args.html:
+        html_file = args.html
+    else:
+        html_file = str(reports_dir / f"odoo_report_{timestamp}.html")
     generate_html_report(report, html_file)
 
     if args.json:
-        save_json_report(report, args.json)
+        json_file = args.json
+        save_json_report(report, json_file)
 
 
 if __name__ == '__main__':

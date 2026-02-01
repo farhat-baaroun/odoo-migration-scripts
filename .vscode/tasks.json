@@ -1,0 +1,66 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Open HTML Report in Browser",
+            "type": "shell",
+            "command": "open",
+            "args": [
+                "${workspaceFolder}/addons_reports/odoo_report.html"
+            ],
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "osx": {
+                "command": "open"
+            },
+            "linux": {
+                "command": "xdg-open"
+            },
+            "windows": {
+                "command": "start"
+            }
+        },
+        {
+            "label": "Open HTML Report (Reveal in File Explorer)",
+            "type": "shell",
+            "command": "open",
+            "args": [
+                "-R",
+                "${workspaceFolder}/addons_reports/odoo_report.html"
+            ],
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            },
+            "osx": {
+                "command": "open",
+                "args": [
+                    "-R",
+                    "${workspaceFolder}/addons_reports/odoo_report.html"
+                ]
+            },
+            "linux": {
+                "command": "xdg-open",
+                "args": [
+                    "${workspaceFolder}/addons_reports"
+                ]
+            },
+            "windows": {
+                "command": "explorer",
+                "args": [
+                    "/select,",
+                    "${workspaceFolder}\\addons_reports\\odoo_report.html"
+                ]
+            }
+        }
+    ]
+}
+
